@@ -1,18 +1,14 @@
 #include <opencv2/opencv.hpp>
 #include <iostream>
 #include <chrono>
-#include <thread>
 
-extern "C" {
-    void initGreenScreenPipeline(int width, int height, int channels);
-    void processFrameAsync(unsigned char* fg_data, unsigned char* bg_data, int streamIdx);
-    unsigned char* syncAndGetFrame(int streamIdx);
-    void cleanupGreenScreenPipeline();
-}
+#include "VideoProcessor.h"
+#include "GaussianBlurFilter.h"
+#include "ChromaKeyFilter.h"
 
 int main() {
-    cv::VideoCapture fg("../../video.mp4");
-    cv::VideoCapture bg("../../video1.mp4");
+    cv::VideoCapture fg("../../fg.mp4");
+    cv::VideoCapture bg("../../bg.mp4");
     
     if (!fg.isOpened() || !bg.isOpened()) return -1;
 
@@ -28,15 +24,19 @@ int main() {
     int h = fg_frame.rows;
     int c = fg_frame.channels();
 
-    initGreenScreenPipeline(w, h, c);
+    VideoProcessor processor(w, h, c);
+    processor.addFilter(new GaussianBlurFilter(w, h, c, 3.0f, true));
+    processor.addFilter(new ChromaKeyFilter());
 
     fg >> fg_frame; bg >> bg_frame;
-    if(fg_frame.size() != bg_frame.size()) cv::resize(bg_frame, bg_frame, fg_frame.size());
-    processFrameAsync(fg_frame.data, bg_frame.data, 0);
+    if(fg_frame.size() != bg_frame.size()) 
+        cv::resize(bg_frame, bg_frame, fg_frame.size());
+    processor.processFrameAsync(fg_frame.data, bg_frame.data, 0);
 
     fg >> fg_frame; bg >> bg_frame;
-    if(fg_frame.size() != bg_frame.size()) cv::resize(bg_frame, bg_frame, fg_frame.size());
-    processFrameAsync(fg_frame.data, bg_frame.data, 1);
+    if(fg_frame.size() != bg_frame.size()) 
+        cv::resize(bg_frame, bg_frame, fg_frame.size());
+    processor.processFrameAsync(fg_frame.data, bg_frame.data, 1);
 
     int displayStream = 0;
     int queueStream = 2;
@@ -47,7 +47,8 @@ int main() {
 
     while (1) 
     {
-        fg >> fg_frame; bg >> bg_frame;
+        fg >> fg_frame; 
+        bg >> bg_frame;
         
         if (fg_frame.empty()) break;
         if (bg_frame.empty()) 
@@ -55,11 +56,12 @@ int main() {
             bg.set(cv::CAP_PROP_POS_FRAMES, 0);
             bg >> bg_frame; 
         }
-        if (fg_frame.size() != bg_frame.size()) cv::resize(bg_frame, bg_frame, fg_frame.size());
+        if (fg_frame.size() != bg_frame.size()) 
+            cv::resize(bg_frame, bg_frame, fg_frame.size());
 
-        processFrameAsync(fg_frame.data, bg_frame.data, queueStream);
+        processor.processFrameAsync(fg_frame.data, bg_frame.data, queueStream);
 
-        unsigned char* processed_data = syncAndGetFrame(displayStream);
+        unsigned char* processed_data = processor.syncAndGetFrame(displayStream);
 
         cv::Mat output(h, w, CV_8UC3, processed_data);
         cv::imshow("Video Frame", output);
@@ -80,14 +82,15 @@ int main() {
 
     for(int i = 0; i < 2; i++) 
     {
-        unsigned char* processed_data = syncAndGetFrame(displayStream);
+        unsigned char* processed_data = processor.syncAndGetFrame(displayStream);
         cv::Mat output(h, w, CV_8UC3, processed_data);
         cv::imshow("Video Frame", output);
         cv::waitKey(1);
         displayStream = (displayStream + 1) % 3;
     }
 
-    cleanupGreenScreenPipeline();
-    fg.release(); bg.release(); cv::destroyAllWindows();
+    fg.release(); 
+    bg.release(); 
+    cv::destroyAllWindows();
     return 0;
 }

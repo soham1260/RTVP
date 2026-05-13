@@ -1,0 +1,20 @@
+#pragma once
+#include "VideoFilter.h"
+
+#define BLUR_RADIUS 7
+
+class GaussianBlurFilter : public VideoFilter 
+{
+    private:
+        float sigma;
+        unsigned char* d_temp;
+        int width, height, channels;
+        bool processBackground;
+        float blurWeights[BLUR_RADIUS * 2 + 1];
+
+    public:
+        GaussianBlurFilter(int width, int height, int channels, float sigma = 3.0f, bool processBackground = false);
+        ~GaussianBlurFilter();
+
+        void process(unsigned char* d_fg, unsigned char* d_bg, int width, int height, int channels, cudaStream_t stream);
+};
