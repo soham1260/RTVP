@@ -6,6 +6,7 @@
 #include "GaussianBlurFilter.h"
 #include "ChromaKeyFilter.h"
 #include "GrayscaleFilter.h"
+#include "SepiaFilter.h"
 
 int main() 
 {
@@ -31,7 +32,8 @@ int main()
     processor.addFilter(new GaussianBlurFilter(w, h, c, 3.0f, true));
     processor.addFilter(new ChromaKeyFilter(120.0f, 30.0f, 80.0f, 0.3f, 0.3f));
     
-    processor.addFilter(new GrayscaleFilter());
+    // processor.addFilter(new GrayscaleFilter());
+    processor.addFilter(new SepiaFilter());
 
     fg >> fg_frame; bg >> bg_frame;
     if(fg_frame.size() != bg_frame.size()) 
