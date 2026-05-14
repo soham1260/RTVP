@@ -15,8 +15,8 @@
 
 int main() 
 {
-    cv::VideoCapture fg("../../fg.mp4");
-    cv::VideoCapture bg("../../bg.mp4");
+    cv::VideoCapture fg("../../assets/fg.mp4");
+    cv::VideoCapture bg("../../assets/bg.mp4");
     
     if (!fg.isOpened() || !bg.isOpened()) return -1;
 
